@@ -1,5 +1,6 @@
-import {useEffect, useState} from "react";
-import {summarizeText} from "@/lib/summarize";
+import React, {useEffect, useState} from "react";
+import {Skeleton} from "@/components/ui/skeleton";
+import axios, {AxiosResponse} from "axios";
 
 interface NoteEditorProps {
     onSubmit: (title: string, content: string) => void;
@@ -37,8 +38,8 @@ export function NoteEditor({onSubmit, initialTitle = '', initialContent = '', ap
 
         setIsSummarizing(true);
         try {
-            const summary = await summarizeText(content, apiKey);
-            setContent(summary);
+            const summary: AxiosResponse = await axios.post('/api/summarize', {text: content})
+            setContent(summary.data);
         } catch (error) {
             console.error('Failed to summarize:', error);
             alert('Failed to summarize the text. Please try again.');
@@ -50,38 +51,47 @@ export function NoteEditor({onSubmit, initialTitle = '', initialContent = '', ap
     return (
         <form
             onSubmit={handleSubmit}
-            className="bg-white shadow-md rounded-lg p-4 mb-6"
+            // className="bg-white shadow-md rounded-lg p-4 mb-6"
         >
-            <input
-                type="text"
-                placeholder="Title"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                className="w-full border border-gray-300 rounded-lg p-2 mb-4"
-            />
-            <textarea
-                placeholder="Content"
-                value={content}
-                onChange={(e) => setContent(e.target.value)}
-                className="w-full border border-gray-300 rounded-lg p-2 mb-4"
-                rows={4}
-            />
-            <div className="flex gap-2">
-                <button
-                    type="submit"
-                    className="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600"
-                >
-                    {initialTitle ? 'Update Note' : 'Add Note'}
-                </button>
-                <button
-                    type="button"
-                    onClick={handleSummarize}
-                    disabled={isSummarizing || !content.trim()}
-                    className="bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                    {isSummarizing ? 'Summarizing...' : 'Summarize'}
-                </button>
+            <div className={'flex flex-col gap-4'}>
+                <input
+                    type="text"
+                    placeholder="📝 Title"
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
+                    className="w-full border border-gray-300 rounded-lg p-2 "
+                />
+                <div>
+                    {isSummarizing ?
+                        <Skeleton className="h-24 w-full rounded-12"/> :
+                        <textarea
+                            placeholder="💭 Write your content here..."
+                            value={content}
+                            onChange={(e) => setContent(e.target.value)}
+                            className="w-full border border-gray-300 rounded-lg p-2 mb-4"
+                            rows={4}
+                        />}
+                </div>
+
+                <div className="flex gap-2">
+                    <button
+                        type="submit"
+                        className="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600"
+                    >
+                        {initialTitle ? 'Update Note' : 'Add Note'}
+                    </button>
+                    <button
+                        type="button"
+                        onClick={handleSummarize}
+                        disabled={isSummarizing || !content.trim()}
+                        className="bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                        {isSummarizing ? 'Summarizing...' : 'Summarize'}
+                    </button>
+                </div>
             </div>
+
+
         </form>
     );
 }
