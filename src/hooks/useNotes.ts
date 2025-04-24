@@ -14,15 +14,14 @@ export const useNotes = (userId: string) => {
         return data;
     };
 
-
     const addNote = useMutation({
         mutationFn: async (note: { title: string; content: string; user_id: string }) => {
             const {data, error} = await supabase.from('notes').insert([note]);
             if (error) throw error;
             return data;
         },
-        // @ts-ignore
-        onSuccess: () => queryClient.invalidateQueries(['notes']),
+
+        onSuccess: () => queryClient.invalidateQueries({queryKey: ['notes']}),
     });
 
     const deleteNote = useMutation({
@@ -30,8 +29,8 @@ export const useNotes = (userId: string) => {
             const {error} = await supabase.from('notes').delete().eq('id', id);
             if (error) throw error;
         },
-        // @ts-ignore
-        onSuccess: () => queryClient.invalidateQueries(['notes']),
+
+        onSuccess: () => queryClient.invalidateQueries({queryKey: ['notes']}),
     });
 
     return {getNotes, addNote, deleteNote};
