@@ -6,17 +6,10 @@ interface NoteEditorProps {
     onSubmit: (title: string, content: string) => void;
     initialTitle?: string;
     initialContent?: string;
-    apiKey: string;
 }
 
-// To get a free API key:
-// 1. Go to https://huggingface.co/
-// 2. Sign up for a free account
-// 3. Go to Settings -> Access Tokens
-// 4. Create a new token
-// 5. Copy the token and use it as the apiKey prop
 
-export function NoteEditor({onSubmit, initialTitle = '', initialContent = '', apiKey}: NoteEditorProps) {
+export function NoteEditor({onSubmit, initialTitle = '', initialContent = ''}: NoteEditorProps) {
     const [title, setTitle] = useState(initialTitle);
     const [content, setContent] = useState(initialContent);
     const [isSummarizing, setIsSummarizing] = useState(false);
