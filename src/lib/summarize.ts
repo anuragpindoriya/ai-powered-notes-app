@@ -6,7 +6,7 @@ interface HuggingFaceResponse {
     summary_text: string;
 }
 
-export async function summarizeText(text: string, apiKey: string): Promise<string> {
+export async function summarizeText(text: string): Promise<string> {
     try {
         const response = await axios.post<HuggingFaceResponse[]>(
             HUGGINGFACE_API_URL,
@@ -20,7 +20,7 @@ export async function summarizeText(text: string, apiKey: string): Promise<strin
             },
             {
                 headers: {
-                    'Authorization': `Bearer ${apiKey}`,
+                    'Authorization': `Bearer ${process.env.NEXT_PUBLIC_HUGGINGFACE_API_KEY}`,
                     'Content-Type': 'application/json'
                 }
             }
