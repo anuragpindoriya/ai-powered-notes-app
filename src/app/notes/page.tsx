@@ -1,20 +1,14 @@
 'use client';
+
 import {useEffect, useState} from 'react';
 import {supabase} from '@/lib/supabase';
 import {NoteCard} from '@/components/NoteCard';
-import {useQuery} from '@tanstack/react-query';
-import {Card, CardContent} from "@/components/ui/card";
-import {Skeleton} from "@/components/ui/skeleton";
-import {useRouter} from 'next/navigation';
 import {AddEditNoteDialog} from '@/components/AddEditNoteDialog';
 import {Button} from '@/components/ui/button';
-import {Plus, LogOut} from 'lucide-react';
-import axios from "axios";
-import {Note} from "@/types/note";
+import {LogOut, Plus} from 'lucide-react';
 import {Avatar, AvatarFallback} from '@/components/ui/avatar';
-
-// Maximum number of notes per user
-const MAX_NOTES_PER_USER = 100;
+import {Note} from '@/types/note';
+import {useRouter} from 'next/navigation';
 
 export default function NotesPage() {
     const router = useRouter();
@@ -28,19 +22,18 @@ export default function NotesPage() {
     useEffect(() => {
         const fetchNotes = async () => {
             try {
-                const { data: { session } } = await supabase.auth.getSession();
+                const {data: {session}} = await supabase.auth.getSession();
                 if (!session) {
                     router.push('/login');
                     return;
                 }
 
-                // Set user initial for avatar
                 setUserInitial(session.user.email?.[0].toUpperCase() || 'U');
 
-                const { data, error } = await supabase
+                const {data, error} = await supabase
                     .from('notes')
                     .select('*')
-                    .order('created_at', { ascending: false });
+                    .order('created_at', {ascending: false});
 
                 if (error) throw error;
                 setNotes(data || []);
@@ -66,15 +59,15 @@ export default function NotesPage() {
 
     const handleAddNote = async (title: string, content: string) => {
         try {
-            const { data: { session } } = await supabase.auth.getSession();
+            const {data: {session}} = await supabase.auth.getSession();
             if (!session) {
                 router.push('/login');
                 return;
             }
 
-            const { data, error } = await supabase
+            const {data, error} = await supabase
                 .from('notes')
-                .insert([{ title, content, user_id: session.user.id }])
+                .insert([{title, content, user_id: session.user.id}])
                 .select()
                 .single();
 
@@ -89,13 +82,13 @@ export default function NotesPage() {
 
     const handleUpdateNote = async (id: string, title: string, content: string) => {
         try {
-            const { error } = await supabase
+            const {error} = await supabase
                 .from('notes')
-                .update({ title, content })
+                .update({title, content})
                 .eq('id', id);
 
             if (error) throw error;
-            setNotes(notes.map(note => note.id === id ? { ...note, title, content } : note));
+            setNotes(notes.map(note => note.id === id ? {...note, title, content} : note));
             setEditingNote(null);
         } catch (error) {
             console.error('Error updating note:', error);
@@ -105,7 +98,7 @@ export default function NotesPage() {
 
     const handleDeleteNote = async (id: string) => {
         try {
-            const { error } = await supabase
+            const {error} = await supabase
                 .from('notes')
                 .delete()
                 .eq('id', id);
@@ -124,22 +117,23 @@ export default function NotesPage() {
 
     return (
         <div className="min-h-screen bg-gray-50">
-            <header className="sticky top-0 z-50 flex items-center justify-between p-4 border-b shadow-sm backdrop-blur border-gray-200 px-6 py-4 bg-white/70">
+            <header
+                className="sticky top-0 z-50 flex items-center justify-between p-4 border-b shadow-sm backdrop-blur border-gray-200 px-6 py-4 bg-white/70">
                 <h1 className="text-2xl font-bold tracking-tight text-blue-700">✨ AI Notes</h1>
                 <div className="flex items-center gap-4">
                     <Button onClick={() => setIsDialogOpen(true)}>
-                        <Plus className="mr-2 h-4 w-4" />
+                        <Plus className="mr-2 h-4 w-4"/>
                         Add Note
                     </Button>
                     <Avatar>
                         <AvatarFallback>{userInitial}</AvatarFallback>
                     </Avatar>
-                    <Button 
-                        variant="ghost" 
-                        size="icon" 
+                    <Button
+                        variant="ghost"
+                        size="icon"
                         onClick={handleSignOut}
                     >
-                        <LogOut className="w-5 h-5" />
+                        <LogOut className="w-5 h-5"/>
                     </Button>
                 </div>
             </header>
@@ -166,7 +160,7 @@ export default function NotesPage() {
                     open={isDialogOpen}
                     onOpenChange={setIsDialogOpen}
                     note={editingNote || undefined}
-                    onSave={editingNote ? 
+                    onSave={editingNote ?
                         (title, content) => handleUpdateNote(editingNote.id, title, content) :
                         handleAddNote
                     }
