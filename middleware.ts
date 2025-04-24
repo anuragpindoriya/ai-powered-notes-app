@@ -24,7 +24,7 @@ export async function middleware(req: NextRequest) {
             res.headers.set(key, value);
         });
 
-        // Create Supabase client with secure cookie handling
+        // Create Supabase client
         const supabase = createClient(
             process.env.NEXT_PUBLIC_SUPABASE_URL!,
             process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -34,35 +34,14 @@ export async function middleware(req: NextRequest) {
                     autoRefreshToken: false,
                     detectSessionInUrl: false
                 },
-                cookies: {
-                    get(name: string) {
-                        return req.cookies.get(name)?.value;
-                    },
-                    set(name: string, value: string, options: any) {
-                        // Secure cookie settings
-                        res.cookies.set(name, value, {
-                            ...options,
-                            httpOnly: true,
-                            secure: process.env.NODE_ENV === 'production',
-                            sameSite: 'lax',
-                            path: '/',
-                        });
-                    },
-                    remove(name: string, options: any) {
-                        res.cookies.set(name, '', {
-                            ...options,
-                            maxAge: -1,
-                            httpOnly: true,
-                            secure: process.env.NODE_ENV === 'production',
-                            sameSite: 'lax',
-                            path: '/',
-                        });
-                    },
-                },
+                global: {
+                    headers: {
+                        cookie: req.headers.get('cookie') || ''
+                    }
+                }
             }
         );
 
-        // Rest of your middleware code remains the same
         // Check if the route is protected
         const isProtectedRoute = Object.keys(protectedRoutes).some(route =>
             req.nextUrl.pathname.startsWith(route)
