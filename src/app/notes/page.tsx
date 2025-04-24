@@ -9,44 +9,41 @@ import {LogOut, Plus} from 'lucide-react';
 import {Avatar, AvatarFallback} from '@/components/ui/avatar';
 import {Note} from '@/types/note';
 import {useRouter} from 'next/navigation';
+import {useNotes} from '@/hooks/useNotes';
+import {useQuery} from '@tanstack/react-query';
 
 export default function NotesPage() {
     const router = useRouter();
-    const [notes, setNotes] = useState<Note[]>([]);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [editingNote, setEditingNote] = useState<Note | null>(null);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
     const [userInitial, setUserInitial] = useState<string>('');
+    const [userId, setUserId] = useState<string | null>(null);
 
+    // Check for authenticated session
     useEffect(() => {
-        const fetchNotes = async () => {
-            try {
-                const {data: {session}} = await supabase.auth.getSession();
-                if (!session) {
-                    router.push('/login');
-                    return;
-                }
-
-                setUserInitial(session.user.email?.[0].toUpperCase() || 'U');
-
-                const {data, error} = await supabase
-                    .from('notes')
-                    .select('*')
-                    .order('created_at', {ascending: false});
-
-                if (error) throw error;
-                setNotes(data || []);
-            } catch (error) {
-                console.error('Error fetching notes:', error);
-                setError('Failed to fetch notes');
-            } finally {
-                setLoading(false);
+        const checkSession = async () => {
+            const {data: {session}} = await supabase.auth.getSession();
+            if (!session) {
+                router.push('/login');
+                return;
             }
+
+            setUserId(session.user.id);
+            setUserInitial(session.user.email?.[0].toUpperCase() || 'U');
         };
 
-        fetchNotes();
+        checkSession();
     }, [router]);
+
+    // Use the useNotes hook for data operations
+    const {getNotes, addNote, deleteNote} = useNotes(userId || '');
+
+    // Query for notes
+    const {data: notes = [], isLoading, error} = useQuery({
+        queryKey: ['notes', userId],
+        queryFn: getNotes,
+        enabled: !!userId,
+    });
 
     const handleSignOut = async () => {
         try {
@@ -58,29 +55,23 @@ export default function NotesPage() {
     };
 
     const handleAddNote = async (title: string, content: string) => {
+        if (!userId) return;
+
         try {
-            const {data: {session}} = await supabase.auth.getSession();
-            if (!session) {
-                router.push('/login');
-                return;
-            }
-
-            const {data, error} = await supabase
-                .from('notes')
-                .insert([{title, content, user_id: session.user.id}])
-                .select()
-                .single();
-
-            if (error) throw error;
-            setNotes([data, ...notes]);
+            await addNote.mutateAsync({
+                title,
+                content,
+                user_id: userId
+            });
             setIsDialogOpen(false);
         } catch (error) {
             console.error('Error adding note:', error);
-            setError('Failed to add note');
         }
     };
 
     const handleUpdateNote = async (id: string, title: string, content: string) => {
+        if (!userId) return;
+
         try {
             const {error} = await supabase
                 .from('notes')
@@ -88,30 +79,22 @@ export default function NotesPage() {
                 .eq('id', id);
 
             if (error) throw error;
-            setNotes(notes.map(note => note.id === id ? {...note, title, content} : note));
+            // The query will be automatically invalidated by the addNote mutation
             setEditingNote(null);
         } catch (error) {
             console.error('Error updating note:', error);
-            setError('Failed to update note');
         }
     };
 
     const handleDeleteNote = async (id: string) => {
         try {
-            const {error} = await supabase
-                .from('notes')
-                .delete()
-                .eq('id', id);
-
-            if (error) throw error;
-            setNotes(notes.filter(note => note.id !== id));
+            await deleteNote.mutateAsync(parseInt(id));
         } catch (error) {
             console.error('Error deleting note:', error);
-            setError('Failed to delete note');
         }
     };
 
-    if (loading) {
+    if (isLoading || !userId) {
         return <div>Loading...</div>;
     }
 
@@ -141,12 +124,12 @@ export default function NotesPage() {
             <div className="container mx-auto p-4">
                 {error && (
                     <div className="mb-4 p-4 bg-red-100 border border-red-400 text-red-700 rounded">
-                        {error}
+                        {String(error)}
                     </div>
                 )}
 
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {notes.map((note) => (
+                {notes.length > 0 ? <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {notes.map((note: Note) => (
                         <NoteCard
                             key={note.id}
                             note={note}
@@ -154,7 +137,7 @@ export default function NotesPage() {
                             onUpdate={handleUpdateNote}
                         />
                     ))}
-                </div>
+                </div> : <h1 className={'text-center'}>No Magic word for you so create it</h1>}
 
                 <AddEditNoteDialog
                     open={isDialogOpen}
