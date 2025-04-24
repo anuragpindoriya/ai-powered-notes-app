@@ -104,7 +104,7 @@ export default function NotesPage() {
                 className="sticky top-0 z-50 flex items-center justify-between p-4 border-b shadow-sm backdrop-blur border-gray-200 px-6 py-4 bg-white/70">
                 <h1 className="text-2xl font-bold tracking-tight text-blue-700">✨ AI Notes</h1>
                 <div className="flex items-center gap-4">
-                    <Button onClick={() => setIsDialogOpen(true)}>
+                    <Button onClick={() => setIsDialogOpen(true)} variant={'blue_defualt'}>
                         <Plus className="mr-2 h-4 w-4"/>
                         Add Note
                     </Button>
