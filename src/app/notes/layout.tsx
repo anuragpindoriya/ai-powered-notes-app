@@ -6,11 +6,13 @@ import React from "react";
 import {signOut} from '@/utils/authHelpers';
 import {useRouter} from "next/navigation";
 
-export default function Header({children}: { children: React.ReactNode }) {
+export default function NotesLayout({children}: { children: React.ReactNode }) {
     const router = useRouter();
-    return (<>
+    
+    return (
+        <>
             <header
-                className="sticky top-0 z-50 flex items-center justify-between p-4 border-b shadow-sm backdrop-blur border-gray-200 px-6 py-4  bg-white/70">
+                className="sticky top-0 z-50 flex items-center justify-between p-4 border-b shadow-sm backdrop-blur border-gray-200 px-6 py-4 bg-white/70">
                 <h1 className="text-2xl font-bold tracking-tight text-blue-700">✨ AI Notes</h1>
                 <div className="flex items-center gap-4">
                     <Avatar>
@@ -24,9 +26,7 @@ export default function Header({children}: { children: React.ReactNode }) {
                     </Button>
                 </div>
             </header>
-
             {children}
-
         </>
-    )
+    );
 }
