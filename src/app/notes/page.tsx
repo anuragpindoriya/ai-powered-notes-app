@@ -11,6 +11,7 @@ import {Note} from '@/types/note';
 import {useRouter} from 'next/navigation';
 import {useNotes} from '@/hooks/useNotes';
 import {useQuery} from '@tanstack/react-query';
+import {Tooltip, TooltipContent, TooltipProvider, TooltipTrigger} from "@radix-ui/react-tooltip";
 
 export default function NotesPage() {
     const router = useRouter();
@@ -111,13 +112,22 @@ export default function NotesPage() {
                     <Avatar>
                         <AvatarFallback>{userInitial}</AvatarFallback>
                     </Avatar>
-                    <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={handleSignOut}
-                    >
-                        <LogOut className="w-5 h-5"/>
-                    </Button>
+
+                    <TooltipProvider>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={handleSignOut}
+                                >
+                                    <LogOut className="w-5 h-5"/>
+                                </Button></TooltipTrigger>
+                            <TooltipContent>
+                                <p>Log out</p>
+                            </TooltipContent>
+                        </Tooltip>
+                    </TooltipProvider>
                 </div>
             </header>
 
