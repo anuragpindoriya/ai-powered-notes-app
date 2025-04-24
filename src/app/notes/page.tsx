@@ -1,199 +1,176 @@
 'use client';
 import {useEffect, useState} from 'react';
 import {supabase} from '@/lib/supabase';
-import {NoteEditor} from '@/components/NoteEditor';
 import {NoteCard} from '@/components/NoteCard';
 import {useQuery} from '@tanstack/react-query';
 import {Card, CardContent} from "@/components/ui/card";
 import {Skeleton} from "@/components/ui/skeleton";
 import {useRouter} from 'next/navigation';
+import {AddEditNoteDialog} from '@/components/AddEditNoteDialog';
+import {Button} from '@/components/ui/button';
+import {Plus, LogOut} from 'lucide-react';
+import axios from "axios";
+import {Note} from "@/types/note";
+import {Avatar, AvatarFallback} from '@/components/ui/avatar';
 
 // Maximum number of notes per user
 const MAX_NOTES_PER_USER = 100;
 
 export default function NotesPage() {
     const router = useRouter();
-    const [userId, setUserId] = useState<string | null>(null);
-    const [editingNote, setEditingNote] = useState<{ id: number; title: string; content: string } | null>(null);
+    const [notes, setNotes] = useState<Note[]>([]);
+    const [isDialogOpen, setIsDialogOpen] = useState(false);
+    const [editingNote, setEditingNote] = useState<Note | null>(null);
     const [loading, setLoading] = useState(true);
-    const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [userInitial, setUserInitial] = useState<string>('');
 
     useEffect(() => {
-        const checkAuth = async () => {
+        const fetchNotes = async () => {
             try {
-                const {data: {session}, error: authError} = await supabase.auth.getSession();
-                
-                if (authError) throw authError;
-                
-                const user = session?.user;
-                if (user) {
-                    setUserId(user.id);
-                    setIsAuthenticated(true);
-                } else {
+                const { data: { session } } = await supabase.auth.getSession();
+                if (!session) {
                     router.push('/login');
+                    return;
                 }
+
+                // Set user initial for avatar
+                setUserInitial(session.user.email?.[0].toUpperCase() || 'U');
+
+                const { data, error } = await supabase
+                    .from('notes')
+                    .select('*')
+                    .order('created_at', { ascending: false });
+
+                if (error) throw error;
+                setNotes(data || []);
             } catch (error) {
-                console.error('Auth error:', error);
-                setError('Authentication failed. Please try again.');
-                router.push('/login');
+                console.error('Error fetching notes:', error);
+                setError('Failed to fetch notes');
             } finally {
                 setLoading(false);
             }
         };
 
-        checkAuth();
+        fetchNotes();
     }, [router]);
 
-    const fetchNotes = async () => {
-        if (!userId) throw new Error('User ID not available');
-        
-        const {data, error, count} = await supabase
-            .from('notes')
-            .select('*', {count: 'exact'})
-            .eq('user_id', userId)
-            .order('created_at', {ascending: false});
-
-        if (error) throw error;
-        if (count && count > MAX_NOTES_PER_USER) {
-            throw new Error('Maximum note limit reached');
-        }
-        return data;
-    };
-
-    const {data: notes = [], refetch, error: fetchError} = useQuery({
-        queryKey: ['notes', userId],
-        queryFn: fetchNotes,
-        enabled: !!userId,
-        retry: 1,
-        staleTime: 30000, // 30 seconds
-    });
-
-    const handleAdd = async (title: string, content: string) => {
-        if (!userId) {
-            setError('User ID is not set');
-            return;
-        }
-
+    const handleSignOut = async () => {
         try {
-            // Input validation
-            if (!title.trim() || !content.trim()) {
-                setError('Title and content are required');
-                return;
-            }
-
-            if (title.length > 100) {
-                setError('Title is too long');
-                return;
-            }
-
-            if (content.length > 10000) {
-                setError('Content is too long');
-                return;
-            }
-
-            if (editingNote) {
-                const {error} = await supabase
-                    .from('notes')
-                    .update({title, content})
-                    .eq('id', editingNote.id)
-                    .eq('user_id', userId); // Ensure user owns the note
-
-                if (error) throw error;
-                setEditingNote(null);
-            } else {
-                const {error} = await supabase
-                    .from('notes')
-                    .insert([{title, content, user_id: userId}]);
-
-                if (error) throw error;
-            }
-            setError(null);
-            refetch();
+            await supabase.auth.signOut();
+            router.push('/');
         } catch (error) {
-            console.error('Error saving note:', error);
-            setError('Failed to save note. Please try again.');
+            console.error('Error signing out:', error);
         }
     };
 
-    const handleEdit = (note: { id: number; title: string; content: string }) => {
-        setEditingNote(note);
-        setError(null);
-    };
-
-    const handleDelete = async (id: number) => {
+    const handleAddNote = async (title: string, content: string) => {
         try {
-            const {error} = await supabase
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!session) {
+                router.push('/login');
+                return;
+            }
+
+            const { data, error } = await supabase
                 .from('notes')
-                .delete()
-                .eq('id', id)
-                .eq('user_id', userId); // Ensure user owns the note
+                .insert([{ title, content, user_id: session.user.id }])
+                .select()
+                .single();
 
             if (error) throw error;
-            setError(null);
-            refetch();
+            setNotes([data, ...notes]);
+            setIsDialogOpen(false);
+        } catch (error) {
+            console.error('Error adding note:', error);
+            setError('Failed to add note');
+        }
+    };
+
+    const handleUpdateNote = async (id: string, title: string, content: string) => {
+        try {
+            const { error } = await supabase
+                .from('notes')
+                .update({ title, content })
+                .eq('id', id);
+
+            if (error) throw error;
+            setNotes(notes.map(note => note.id === id ? { ...note, title, content } : note));
+            setEditingNote(null);
+        } catch (error) {
+            console.error('Error updating note:', error);
+            setError('Failed to update note');
+        }
+    };
+
+    const handleDeleteNote = async (id: string) => {
+        try {
+            const { error } = await supabase
+                .from('notes')
+                .delete()
+                .eq('id', id);
+
+            if (error) throw error;
+            setNotes(notes.filter(note => note.id !== id));
         } catch (error) {
             console.error('Error deleting note:', error);
-            setError('Failed to delete note. Please try again.');
+            setError('Failed to delete note');
         }
     };
 
     if (loading) {
-        return (
-            <div className="min-h-screen bg-gray-100">
-                <div className="container mx-auto p-4">
-                    <Card className="mb-6">
-                        <CardContent className="p-6 space-y-4">
-                            <Skeleton className="h-10 w-full" />
-                            <Skeleton className="h-24 w-full" />
-                        </CardContent>
-                    </Card>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mt-6">
-                        {[1, 2, 3].map((i) => (
-                            <Card key={i} className="p-4">
-                                <Skeleton className="h-6 w-3/4 mb-2" />
-                                <Skeleton className="h-4 w-full mb-4" />
-                                <Skeleton className="h-4 w-1/2" />
-                            </Card>
-                        ))}
-                    </div>
-                </div>
-            </div>
-        );
-    }
-
-    if (!isAuthenticated) {
-        return null;
+        return <div>Loading...</div>;
     }
 
     return (
-        <div className="min-h-screen bg-gray-100">
+        <div className="min-h-screen bg-gray-50">
+            <header className="sticky top-0 z-50 flex items-center justify-between p-4 border-b shadow-sm backdrop-blur border-gray-200 px-6 py-4 bg-white/70">
+                <h1 className="text-2xl font-bold tracking-tight text-blue-700">✨ AI Notes</h1>
+                <div className="flex items-center gap-4">
+                    <Button onClick={() => setIsDialogOpen(true)}>
+                        <Plus className="mr-2 h-4 w-4" />
+                        Add Note
+                    </Button>
+                    <Avatar>
+                        <AvatarFallback>{userInitial}</AvatarFallback>
+                    </Avatar>
+                    <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        onClick={handleSignOut}
+                    >
+                        <LogOut className="w-5 h-5" />
+                    </Button>
+                </div>
+            </header>
+
             <div className="container mx-auto p-4">
                 {error && (
                     <div className="mb-4 p-4 bg-red-100 border border-red-400 text-red-700 rounded">
                         {error}
                     </div>
                 )}
-                <Card className="mb-6">
-                    <CardContent className="p-6 space-y-4">
-                        <NoteEditor
-                            onSubmit={handleAdd}
-                            initialTitle={editingNote?.title || ''}
-                            initialContent={editingNote?.content || ''}
-                            apiKey={process.env.NEXT_PUBLIC_HUGGINGFACE_API_KEY || ''}
-                        />
-                    </CardContent>
-                </Card>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mt-6">
+
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     {notes.map((note) => (
                         <NoteCard
                             key={note.id}
                             note={note}
-                            onEdit={handleEdit}
-                            onDelete={handleDelete}
+                            onDelete={handleDeleteNote}
+                            onUpdate={handleUpdateNote}
                         />
                     ))}
                 </div>
+
+                <AddEditNoteDialog
+                    open={isDialogOpen}
+                    onOpenChange={setIsDialogOpen}
+                    note={editingNote || undefined}
+                    onSave={editingNote ? 
+                        (title, content) => handleUpdateNote(editingNote.id, title, content) :
+                        handleAddNote
+                    }
+                />
             </div>
         </div>
     );
