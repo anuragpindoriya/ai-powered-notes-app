@@ -41,8 +41,9 @@ export function AddEditNoteDialog({open, onOpenChange, note, onSave}: AddEditNot
 
         setIsSummarizing(true);
         try {
-            const response = await axios.post('/api/summarize', { text: content });
-            setContent(response.data);
+            const response = await axios.post('/api/summarize', {text: content});
+
+            setContent(response?.data?.summary);
         } catch (error) {
             console.error('Failed to summarize:', error);
             alert('Failed to summarize the text. Please try again.');
@@ -75,7 +76,7 @@ export function AddEditNoteDialog({open, onOpenChange, note, onSave}: AddEditNot
                             Content
                         </label>
                         {isSummarizing ? (
-                            <Skeleton className="h-24 w-full rounded-lg" />
+                            <Skeleton className="h-24 w-full rounded-lg"/>
                         ) : (
                             <Textarea
                                 id="content"
@@ -92,7 +93,7 @@ export function AddEditNoteDialog({open, onOpenChange, note, onSave}: AddEditNot
                             type="button"
                             variant="outline"
                             onClick={handleSummarize}
-                            disabled={isSummarizing || !content.trim()}
+                            disabled={isSummarizing || !content}
                         >
                             {isSummarizing ? 'Summarizing...' : 'Summarize'}
                         </Button>
