@@ -1,6 +1,6 @@
-import {createServerClient} from '@supabase/ssr';
-import {NextResponse} from 'next/server';
-import type {NextRequest} from 'next/server';
+import {createClient} from '@supabase/supabase-js'
+import type {NextRequest} from 'next/server'
+import {NextResponse} from 'next/server'
 
 // Define protected routes and their access levels
 const protectedRoutes = {
@@ -25,10 +25,15 @@ export async function middleware(req: NextRequest) {
         });
 
         // Create Supabase client with secure cookie handling
-        const supabase = createServerClient(
+        const supabase = createClient(
             process.env.NEXT_PUBLIC_SUPABASE_URL!,
             process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
             {
+                auth: {
+                    persistSession: false,
+                    autoRefreshToken: false,
+                    detectSessionInUrl: false
+                },
                 cookies: {
                     get(name: string) {
                         return req.cookies.get(name)?.value;
@@ -57,15 +62,16 @@ export async function middleware(req: NextRequest) {
             }
         );
 
+        // Rest of your middleware code remains the same
         // Check if the route is protected
-        const isProtectedRoute = Object.keys(protectedRoutes).some(route => 
+        const isProtectedRoute = Object.keys(protectedRoutes).some(route =>
             req.nextUrl.pathname.startsWith(route)
         );
 
         if (isProtectedRoute) {
             // Get session with error handling
             const {data: {session}, error} = await supabase.auth.getSession();
-            
+
             if (error) {
                 console.error('Auth error:', error);
                 return redirectToLogin(req);
@@ -96,7 +102,7 @@ function redirectToLogin(req: NextRequest) {
     return NextResponse.redirect(redirectUrl);
 }
 
-// 8. Define which routes this middleware should run on
+// Define which routes this middleware should run on
 export const config = {
     matcher: [
         '/notes/:path*',
